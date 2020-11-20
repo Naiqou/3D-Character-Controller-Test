@@ -30,7 +30,8 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField]
     private bool isFalling;
-    private float Gravity { get; set; }
+
+    private float _gravity;
 
     private LayerMask _ground;
     private static readonly int Jumping = Animator.StringToHash("IsJumping");
@@ -38,10 +39,11 @@ public class PlayerController : MonoBehaviour
     private static readonly int IsFalling = Animator.StringToHash("IsFalling");
     private static readonly int IsSliding = Animator.StringToHash("IsSliding");
     private static readonly int IsMoving = Animator.StringToHash("IsMoving");
+    private static readonly int IsGrounded = Animator.StringToHash("IsGrounded");
 
     void Start()
 {
-    Gravity = Physics.gravity.y;
+    _gravity = Physics.gravity.y;
     _controller = GetComponent<CharacterController>();
     _ground = LayerMask.GetMask("Ground");
     _animator = GetComponent<Animator>();
@@ -63,8 +65,8 @@ public class PlayerController : MonoBehaviour
     {
         var direction = new Vector3(0, 0, Input.GetAxis("Vertical"));
         var rotation = new Vector3(0,Input.GetAxis("Horizontal"),0);
-        float moving;
-        moving = direction.z;
+        var moving = direction.z;
+        
         if (moving < 0)
         {
             moving = Mathf.Abs(moving);
@@ -78,7 +80,7 @@ public class PlayerController : MonoBehaviour
     void PlayerGravity()
     {
         
-        _playerVelocity.y += Gravity * Time.deltaTime;
+        _playerVelocity.y += _gravity * Time.deltaTime;
         _controller.Move(_playerVelocity * Time.deltaTime);
     }
 
@@ -87,12 +89,12 @@ public class PlayerController : MonoBehaviour
         
         if (Input.GetButtonDown("Jump") && isGrounded)
         {
-            _playerVelocity.y += Mathf.Sqrt(jumpHeight * -2f * Gravity);
+            _playerVelocity.y += Mathf.Sqrt(jumpHeight * -2f * _gravity);
             jumpCount++;
         }
         if (Input.GetButtonDown("Jump") && jumpCount == 1 && !isGrounded)
         {
-            _playerVelocity.y += Mathf.Sqrt(jumpHeight*2 * -2f * Gravity);
+            _playerVelocity.y += Mathf.Sqrt(jumpHeight*2 * -2f * _gravity);
             _animator.SetBool(DoubleJumping, true);
             jumpCount++;
         }
@@ -101,40 +103,32 @@ public class PlayerController : MonoBehaviour
         if (_playerVelocity.y == 0)
         {
             jumpCount=0;
-
         }
 
         _animator.SetBool(Jumping, !isGrounded);
 
-        if (isFalling)
+        if (isFalling || isGrounded)
         {
             _animator.SetBool(Jumping, false);
             _animator.SetBool(DoubleJumping, false);
+        }
+
+        if (jumpCount == 2 && isFalling)
+        {
+            _animator.SetBool(DoubleJumping, true);
+            isFalling = false;
+            jumpCount = 0;
         }
     }
 
     void PlayerSlide()
     {
-        if (Input.GetButtonDown("Fire1"))
-        {
-            _animator.SetBool(IsSliding, true);
-        }
-        else
-        {
-            _animator.SetBool(IsSliding, false);
-        }
+        _animator.SetBool(IsSliding, Input.GetButtonDown("Fire1"));
     }
 
     void PlayerIsFalling()
     {
-        if (_playerVelocity.y < 0)
-        {
-            isFalling = true;
-        }
-        else
-        {
-            isFalling = false;
-        }
+        isFalling = _playerVelocity.y < 0;
         _animator.SetBool(IsFalling, isFalling);
     }
     
@@ -147,7 +141,7 @@ public class PlayerController : MonoBehaviour
 
         }
 
-        
+
     }
     void OnDrawGizmos()
     {
